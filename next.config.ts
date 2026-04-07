@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   basePath: isGithubActions ? repo : '',
   assetPrefix: isGithubActions ? repo : '',
+  trailingSlash: true,
   eslint: {
     ignoreDuringBuilds: true,
   },

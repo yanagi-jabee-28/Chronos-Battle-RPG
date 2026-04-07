@@ -8,7 +8,7 @@ function getAi() {
     if (!apiKey) {
       return null;
     }
-    aiInstance = new GoogleGenAI(apiKey);
+    aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
 }
