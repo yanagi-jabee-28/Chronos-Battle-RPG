@@ -1,8 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAi() {
+  if (!aiInstance) {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+      return null;
+    }
+    aiInstance = new GoogleGenAI(apiKey);
+  }
+  return aiInstance;
+}
 
 export async function generateGameAssets() {
+  const ai = getAi();
+  if (!ai) {
+    throw new Error("API key should be set when using the Gemini API.");
+  }
   const prompts = [
     { name: 'ars', prompt: 'Anime style character illustration of a heroic male swordsman named Ars, wearing blue and silver plate armor, holding a glowing steel sword, determined expression, white background, high quality, fantasy RPG art.' },
     { name: 'luna', prompt: 'Anime style character illustration of a beautiful female mage named Luna, wearing purple robes with gold trim, holding a crystal staff, casting a small purple flame, white background, high quality, fantasy RPG art.' },
