@@ -14,8 +14,8 @@ export const LogPanel: React.FC<LogPanelProps> = ({ logs }) => {
   }, [logs]);
 
   return (
-    <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 border border-slate-700/50 overflow-hidden flex flex-col font-mono text-xs shadow-inner h-full">
-      <h3 className="text-slate-500 mb-2 border-b border-slate-800 pb-1 text-[10px] uppercase tracking-tighter font-bold">Battle Log</h3>
+    <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 border border-slate-700/50 overflow-hidden flex flex-col font-mono text-[11px] shadow-inner h-full">
+      <h3 className="text-slate-500 mb-2 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-tighter font-bold">Battle Log</h3>
       <div className="flex-grow overflow-y-auto custom-scrollbar space-y-1.5 pr-2">
         {logs.map((log, index) => (
           <div key={index} className={`leading-relaxed animate-in fade-in slide-in-from-left-2 duration-300

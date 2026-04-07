@@ -28,6 +28,9 @@ export const BattleField: React.FC = () => {
     setTargetSelectionMode,
     executeAction,
     generateSimulatedTimeline,
+    isAutoBattle,
+    setIsAutoBattle,
+    resetBattle
   } = useBattleSystem();
 
   const { playSound } = useAudio();
@@ -97,7 +100,7 @@ export const BattleField: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden flex flex-col">
+    <div className="relative h-screen max-h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden flex flex-col">
       {/* Background Layer */}
       <div className="absolute inset-0 z-0">
         <Image 
@@ -112,63 +115,82 @@ export const BattleField: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-transparent to-slate-950" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto w-full flex-grow flex flex-col p-4 md:p-6">
+      {isAutoBattle && (
+        <div 
+          className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 px-4 py-1 rounded-full font-black tracking-widest text-[10px] md:text-xs shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse cursor-pointer hover:bg-emerald-500/30 transition-colors"
+          onClick={() => {
+            playSound('cancel');
+            setIsAutoBattle(false);
+          }}
+        >
+          AUTO BATTLE ACTIVE - CLICK TO CANCEL
+        </div>
+      )}
+
+      <div className="relative z-10 max-w-6xl mx-auto w-full h-full flex flex-col p-2 md:p-4 overflow-hidden">
         {/* Top Bar: Timeline */}
-        <Timeline timeline={timeline} currentActorId={currentActorId} />
+        <div className="flex-shrink-0 h-[10vh] min-h-[60px] mb-2">
+          <Timeline timeline={timeline} currentActorId={currentActorId} />
+        </div>
 
         {/* Main Battle Area */}
-        <div className="flex-grow flex flex-col md:flex-row gap-6 mb-6 items-center justify-center">
+        <div className="flex-grow flex flex-col md:flex-row gap-2 md:gap-6 mb-2 items-center justify-center overflow-hidden">
           {/* Players Side */}
-          <div className="w-full md:w-1/3 flex flex-col gap-4">
+          <div className="w-full md:w-1/3 flex flex-col gap-2 md:gap-3 h-full justify-center overflow-y-auto custom-scrollbar py-2">
             {characters.filter(c => !c.isEnemy).map(char => (
-              <CharacterCard 
-                key={char.id}
-                char={char}
-                isCurrent={char.id === currentActorId}
-                isTargetable={targetSelectionMode === 'ally' || (targetSelectionMode === 'ally_dead' && char.isDead)}
-                onSelect={(id) => {
-                  executeAction(currentActorId!, selectedSkill, [id], characters);
-                  setTargetSelectionMode(false);
-                }}
-              />
+              <div key={char.id} className="flex-shrink-0">
+                <CharacterCard 
+                  char={char}
+                  isCurrent={char.id === currentActorId}
+                  isTargetable={targetSelectionMode === 'ally' || (targetSelectionMode === 'ally_dead' && char.isDead)}
+                  onSelect={(id) => {
+                    executeAction(currentActorId!, selectedSkill, [id], characters);
+                    setTargetSelectionMode(false);
+                  }}
+                />
+              </div>
             ))}
           </div>
 
           {/* VS Divider */}
-          <div className="hidden md:flex flex-col items-center justify-center opacity-20 px-4">
-            <div className="w-px h-32 bg-gradient-to-b from-transparent via-slate-500 to-transparent" />
-            <span className="text-4xl font-black italic tracking-tighter text-slate-500 my-4">VS</span>
-            <div className="w-px h-32 bg-gradient-to-b from-transparent via-slate-500 to-transparent" />
+          <div className="hidden md:flex flex-col items-center justify-center opacity-10 px-2 flex-shrink-0">
+            <div className="w-px h-16 bg-gradient-to-b from-transparent via-slate-500 to-transparent" />
+            <span className="text-2xl font-black italic tracking-tighter text-slate-500 my-2">VS</span>
+            <div className="w-px h-16 bg-gradient-to-b from-transparent via-slate-500 to-transparent" />
           </div>
 
           {/* Enemies Side */}
-          <div className="w-full md:w-1/3 flex flex-col gap-4">
+          <div className="w-full md:w-1/3 flex flex-col gap-2 md:gap-3 h-full justify-center overflow-y-auto custom-scrollbar py-2">
             {characters.filter(c => c.isEnemy).map(char => (
-              <CharacterCard 
-                key={char.id}
-                char={char}
-                isCurrent={char.id === currentActorId}
-                isTargetable={targetSelectionMode === 'enemy'}
-                onSelect={(id) => {
-                  executeAction(currentActorId!, selectedSkill, [id], characters);
-                  setTargetSelectionMode(false);
-                }}
-              />
+              <div key={char.id} className="flex-shrink-0">
+                <CharacterCard 
+                  char={char}
+                  isCurrent={char.id === currentActorId}
+                  isTargetable={targetSelectionMode === 'enemy'}
+                  onSelect={(id) => {
+                    executeAction(currentActorId!, selectedSkill, [id], characters);
+                    setTargetSelectionMode(false);
+                  }}
+                />
+              </div>
             ))}
           </div>
         </div>
 
         {/* Bottom UI: Controls & Logs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-64">
+        <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-3 h-[28vh] md:h-[35vh] min-h-[180px] max-h-[280px]">
           <ActionMenu 
             actor={currentActor}
             battleState={battleState}
             targetSelectionMode={targetSelectionMode}
+            isAutoBattle={isAutoBattle}
             onSelectSkill={handleSelectSkill}
             onCancel={() => {
               setSelectedSkill(null);
               setTargetSelectionMode(false);
             }}
+            onToggleAuto={() => setIsAutoBattle(prev => !prev)}
+            onReset={resetBattle}
           />
           <LogPanel logs={logs} />
         </div>
