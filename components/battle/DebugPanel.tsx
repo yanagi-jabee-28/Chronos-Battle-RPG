@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Settings, Zap, Shield, Snowflake, Clipboard, Check, Skull } from 'lucide-react';
+import { Settings, Zap, Shield, Snowflake, Clipboard, Check, Skull, Undo2, Brain, Download, Upload } from 'lucide-react';
 
 interface DebugPanelProps {
   characters: any[];
@@ -10,9 +10,18 @@ interface DebugPanelProps {
   onGenerateAssets: () => void;
   isGenerating: boolean;
   copied: boolean;
+  onUndo: () => void;
+  canUndo: boolean;
+  aiCoverageMode: boolean;
+  onToggleAiCoverage: () => void;
+  enemyKnowledge: any;
+  onImportKnowledge: (data: any) => void;
 }
 
-export const DebugPanel: React.FC<DebugPanelProps> = ({ characters, onToggleDebug, onCopyLogs, onGenerateAssets, isGenerating, copied }) => {
+export const DebugPanel: React.FC<DebugPanelProps> = ({ 
+  characters, onToggleDebug, onCopyLogs, onGenerateAssets, isGenerating, copied,
+  onUndo, canUndo, aiCoverageMode, onToggleAiCoverage, enemyKnowledge, onImportKnowledge
+}) => {
   return (
     <div className="bg-slate-900/90 border border-slate-700 rounded-xl p-4 shadow-2xl">
       <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
@@ -35,6 +44,57 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ characters, onToggleDebu
           >
             {copied ? <Check size={12} className="text-green-400" /> : <Clipboard size={12} />}
             {copied ? 'Copied' : 'Copy Logs'}
+          </button>
+        </div>
+      </div>
+
+      {/* AI & Time Travel Section */}
+      <div className="mb-4 border-b border-slate-800 pb-3 space-y-2">
+        <div className="flex gap-2">
+          <button 
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={`flex-1 py-1.5 rounded-md text-[10px] font-bold flex items-center justify-center gap-1 transition-all border
+              ${!canUndo ? 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed' : 'bg-indigo-900/60 text-indigo-300 border-indigo-700 hover:bg-indigo-800'}
+            `}
+          >
+            <Undo2 size={12} /> UNDO TURN
+          </button>
+          <button 
+            onClick={onToggleAiCoverage}
+            className={`flex-1 py-1.5 rounded-md text-[10px] font-bold flex items-center justify-center gap-1 transition-all border
+              ${aiCoverageMode ? 'bg-fuchsia-900/80 text-fuchsia-300 border-fuchsia-500' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'}
+            `}
+          >
+            <Brain size={12} /> AI COVERAGE
+          </button>
+        </div>
+        
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(JSON.stringify(enemyKnowledge, null, 2));
+              alert('Knowledge exported to clipboard!');
+            }}
+            className="flex-1 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] flex items-center justify-center gap-1 transition-colors border border-slate-700"
+          >
+            <Download size={10} /> Export KB
+          </button>
+          <button 
+            onClick={() => {
+              const data = prompt('Paste Knowledge JSON:');
+              if (data) {
+                try {
+                  onImportKnowledge(JSON.parse(data));
+                  alert('Knowledge imported successfully!');
+                } catch (e) {
+                  alert('Invalid JSON');
+                }
+              }
+            }}
+            className="flex-1 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] flex items-center justify-center gap-1 transition-colors border border-slate-700"
+          >
+            <Upload size={10} /> Import KB
           </button>
         </div>
       </div>

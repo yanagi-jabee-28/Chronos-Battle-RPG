@@ -123,14 +123,6 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ char, isCurrent, i
           </div>
         </div>
 
-        {/* Turn Indicator Dot */}
-        {isCurrent && (
-          <motion.div 
-            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-[0_0_8px_rgba(250,204,21,0.8)]"
-          />
-        )}
       </div>
     </motion.div>
   );

@@ -30,7 +30,13 @@ export const BattleField: React.FC = () => {
     generateSimulatedTimeline,
     isAutoBattle,
     setIsAutoBattle,
-    resetBattle
+    resetBattle,
+    undoTurn,
+    history,
+    enemyKnowledge,
+    setEnemyKnowledge,
+    aiCoverageMode,
+    setAiCoverageMode
   } = useBattleSystem();
 
   const { playSound } = useAudio();
@@ -223,6 +229,12 @@ export const BattleField: React.FC = () => {
               onGenerateAssets={handleGenerateAssets}
               isGenerating={isGenerating}
               copied={copied}
+              onUndo={undoTurn}
+              canUndo={history.length > 0}
+              aiCoverageMode={aiCoverageMode}
+              onToggleAiCoverage={() => setAiCoverageMode(!aiCoverageMode)}
+              enemyKnowledge={enemyKnowledge}
+              onImportKnowledge={setEnemyKnowledge}
             />
           </motion.div>
         )}

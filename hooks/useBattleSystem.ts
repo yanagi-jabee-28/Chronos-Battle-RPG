@@ -6,6 +6,11 @@ import { useAudio } from './useAudio';
 
 export type BattleState = 'INIT' | 'CALCULATING' | 'PROCESSING_TURN' | 'WAITING_INPUT' | 'ENEMY_AI' | 'ALLY_AI' | 'THINKING' | 'EXECUTING' | 'END';
 
+export interface EnemyKnowledge {
+  resistedEffects: string[];
+  weaknesses: string[];
+}
+
 export const useBattleSystem = () => {
   const { playSound } = useAudio();
   const [characters, setCharacters] = useState<any[]>([]);
@@ -17,6 +22,44 @@ export const useBattleSystem = () => {
   const [targetSelectionMode, setTargetSelectionMode] = useState<string | false>(false);
   const [isAutoBattle, setIsAutoBattle] = useState(false);
   const [battleCount, setBattleCount] = useState(0);
+
+  // --- Advanced AI & Debug States ---
+  const [enemyKnowledge, setEnemyKnowledge] = useState<Record<string, EnemyKnowledge>>({});
+  const [history, setHistory] = useState<any[]>([]);
+  const [aiCoverageMode, setAiCoverageMode] = useState(false);
+  const [usedSkills, setUsedSkills] = useState<Record<string, string[]>>({});
+
+  // Load Knowledge on Mount
+  useEffect(() => {
+    const saved = localStorage.getItem('ctb_enemy_knowledge');
+    if (saved) {
+      try { setEnemyKnowledge(JSON.parse(saved)); } catch (e) {}
+    }
+  }, []);
+
+  // Save Knowledge on Battle End
+  useEffect(() => {
+    if (battleState === 'END') {
+      localStorage.setItem('ctb_enemy_knowledge', JSON.stringify(enemyKnowledge));
+    }
+  }, [battleState, enemyKnowledge]);
+
+  const undoTurn = useCallback(() => {
+    setHistory(prev => {
+      if (prev.length === 0) return prev;
+      const newHistory = [...prev];
+      const lastState = newHistory.pop();
+      if (lastState) {
+        setCharacters(lastState.characters);
+        setLogs(lastState.logs);
+        setDetailedLogs(lastState.detailedLogs);
+        setCurrentActorId(lastState.currentActorId);
+        setBattleState(lastState.battleState);
+        playSound('cancel');
+      }
+      return newHistory;
+    });
+  }, [playSound]);
 
   const resetBattle = useCallback(() => {
     setCharacters([]);
@@ -76,6 +119,15 @@ export const useBattleSystem = () => {
   }, [getEffectiveStats, appendDetailedLog]);
 
   const executeAction = useCallback((actorId: string, skill: any, targetIds: string[], currentChars: any[]) => {
+    // Snapshot state for Time Travel BEFORE executing
+    setHistory(prev => [...prev, {
+      characters: JSON.parse(JSON.stringify(currentChars)),
+      logs: [...logs],
+      detailedLogs,
+      currentActorId,
+      battleState: 'WAITING_INPUT'
+    }].slice(-10)); // Keep last 10 turns
+
     setBattleState('EXECUTING');
     let charsCopy = [...currentChars];
     const actorIndex = charsCopy.findIndex(c => c.id === actorId);
@@ -220,6 +272,17 @@ export const useBattleSystem = () => {
           if (newEffect.type === 'bad' && target.resistances.includes(skill.effect)) {
             results.push(`${target.name} は ${newEffect.name} をレジストした！`);
             appendDetailedLog(`  -> [${target.id}] Effect Blocked: Resisted ${newEffect.id}`);
+            // Record Knowledge
+            if (target.isEnemy) {
+              setEnemyKnowledge(prev => {
+                const currentResisted = prev[target.id]?.resistedEffects || [];
+                if (currentResisted.includes(skill.effect)) return prev;
+                return {
+                  ...prev,
+                  [target.id]: { ...prev[target.id], resistedEffects: [...currentResisted, skill.effect], weaknesses: prev[target.id]?.weaknesses || [] }
+                };
+              });
+            }
           } else {
             const oppositeIndex = target.effects.findIndex((e: any) => e.id === newEffect.opposite);
             
@@ -406,6 +469,65 @@ export const useBattleSystem = () => {
     }, 0);
   }, [battleState, characters, addLog, appendDetailedLog, handleTurnStartEffects, playSound]);
 
+  // Utility-Based Scoring Function
+  const calculateUtilityScore = useCallback((actor: any, skill: any, target: any, chars: any[]) => {
+    if (actor.mp < skill.cost && !actor.debug?.isInfiniteMp) return -1;
+    let score = 10; // Base score
+
+    // AI Coverage Mode: Force unused skills
+    if (aiCoverageMode && (!usedSkills[actor.id] || !usedSkills[actor.id].includes(skill.id))) {
+      score += 10000;
+    }
+
+    const targetHpRatio = target.hp / target.maxHp;
+
+    // Damage Skills
+    if (skill.type.includes('damage')) {
+      score += skill.power * 20;
+      if (targetHpRatio < 0.3) score += 50; // Kill focus
+    }
+
+    // Healing Skills
+    if (skill.type.includes('heal') && !skill.type.includes('heal_mp')) {
+      if (targetHpRatio < 0.5) score += (1 - targetHpRatio) * 200;
+      else score -= 100; // Don't heal full HP
+    }
+    if (skill.type.includes('heal_mp')) {
+      if (target.mp / target.maxMp < 0.3) score += 100;
+      else score -= 50;
+    }
+
+    // Buffs/Debuffs & Knowledge Base
+    if (skill.effect) {
+      const effectDef = (STATUS_EFFECTS as any)[skill.effect];
+      if (effectDef.type === 'bad' && target.isEnemy) {
+        if (enemyKnowledge[target.id]?.resistedEffects.includes(skill.effect)) {
+          return 0; // Knowledge: Do not use resisted effects
+        }
+      }
+      // Don't stack if already has max stacks
+      const existing = target.effects.find((e: any) => e.id === skill.effect);
+      if (existing && existing.stacks >= effectDef.maxStack) {
+        score -= 50;
+      } else {
+        score += 40;
+      }
+    }
+
+    // Personality Multipliers
+    if (actor.id === 'e1') { // 魔将軍 (Boss)
+      if (targetHpRatio < 0.3) score *= 2.5; // Kill focus
+      if (target.id === 'p3') score *= 1.5; // Healer focus
+    } else if (actor.id === 'e2') { // 重装兵 (Tank)
+      const boss = chars.find(c => c.id === 'e1');
+      if (boss && boss.hp / boss.maxHp < 0.5 && skill.id === 'provoke') score *= 5; // Protect boss
+    } else if (actor.id === 'e3') { // 妖術師 (Mage)
+      if ((target.id === 'p1' || target.id === 'p2') && skill.type.includes('debuff')) score *= 2; // Debuff DPS
+    }
+
+    return score;
+  }, [aiCoverageMode, usedSkills, enemyKnowledge]);
+
   useEffect(() => {
     if (battleState !== 'ENEMY_AI' && battleState !== 'ALLY_AI') return;
     
@@ -418,184 +540,76 @@ export const useBattleSystem = () => {
       const actor = characters.find(c => c.id === currentActorId);
       if (!actor) return;
       
-      // If it's an ally turn and auto battle was turned off, revert to manual input
       if (!actor.isEnemy && !isAutoBattle) {
         setBattleState('WAITING_INPUT');
         return;
       }
 
-      const alivePlayers = characters.filter(c => !c.isEnemy && !c.isDead);
-      const aliveEnemies = characters.filter(c => c.isEnemy && !c.isDead);
-      const deadPlayers = characters.filter(c => !c.isEnemy && c.isDead);
-      
-      const getValidSkill = (preferredId: string, fallbackId = 'attack') => {
-        const skill = (SKILLS as any)[preferredId];
-        return (actor.mp >= skill.cost || actor.debug?.isInfiniteMp) ? preferredId : fallbackId;
-      };
+      const opposingTeam = actor.isEnemy ? characters.filter(c => !c.isEnemy && !c.isDead) : characters.filter(c => c.isEnemy && !c.isDead);
+      const alliedTeam = actor.isEnemy ? characters.filter(c => c.isEnemy && !c.isDead) : characters.filter(c => !c.isEnemy && !c.isDead);
+      const deadAllies = characters.filter(c => c.isEnemy === actor.isEnemy && c.isDead);
 
-      let selectedSkillId = 'attack';
-      let targets: string[] = [];
-
-      // Check for provoke
-      const opposingTeam = actor.isEnemy ? alivePlayers : aliveEnemies;
+      // Provoke check
       const provokedBy = opposingTeam.find(c => c.effects.some((e: any) => e.id === 'PROVOKE'));
 
-      if (actor.isEnemy) {
-        // --- ENEMY AI ---
-        if (actor.id === 'e1') { // Boss: Kill-focus & Cleanse
-          const debuffCount = actor.effects.filter((e: any) => (STATUS_EFFECTS as any)[e.id].type === 'bad').reduce((acc: number, curr: any) => acc + curr.stacks, 0);
-          
-          if (debuffCount >= 2 && Math.random() < 0.8) {
-              selectedSkillId = getValidSkill('boss_aura');
-              targets = [actor.id];
-          } else {
-              const healer = alivePlayers.find(c => c.id === 'p3');
-              const lowestHp = [...alivePlayers].sort((a, b) => a.hp - b.hp)[0];
-              const target = healer || lowestHp;
-              
-              if (!provokedBy) targets = [target.id];
+      let bestAction: { skill: any, targets: string[] } | null = null;
+      let bestScore = -Infinity;
 
-              const notDebuffedAllies = aliveEnemies.filter(c => !c.effects.some((e: any) => e.id === 'ATK_DOWN')).length;
-              if (notDebuffedAllies >= 2 && Math.random() < 0.5) selectedSkillId = getValidSkill('intimidate');
-              else if (Math.random() < 0.4) selectedSkillId = getValidSkill('demon_slash');
-              else selectedSkillId = 'attack';
-          }
-        } else if (actor.id === 'e2') { // Heavy Armor: Tank & Protect Boss
-          const boss = aliveEnemies.find(c => c.id === 'e1');
-          const hasProvoke = actor.effects.some((e: any) => e.id === 'PROVOKE');
-          
-          if (boss && boss.hp < boss.maxHp * 0.5) {
-              if (!hasProvoke && Math.random() < 0.8) {
-                  selectedSkillId = getValidSkill('provoke');
-                  targets = [actor.id];
-              } else {
-                  selectedSkillId = getValidSkill('guard_stance');
-              }
-          } else if (boss && boss.hp < boss.maxHp * 0.8 && Math.random() < 0.6) {
-              selectedSkillId = getValidSkill('dark_heal');
-              targets = [boss.id];
-          } else if (Math.random() < 0.3) {
-              selectedSkillId = getValidSkill('guard_stance');
-          } else {
-              selectedSkillId = 'attack'; // Rare attack
-          }
-        } else if (actor.id === 'e3') { // Mage: Debuffer & Counter
-          const dps = alivePlayers.find(c => c.id === 'p1' || c.id === 'p2');
-          const target = dps || alivePlayers[0];
-          if (!provokedBy) targets = [target.id];
+      const availableSkills = actor.skills.map((id: string) => (SKILLS as any)[id]).filter((s: any) => actor.mp >= s.cost || actor.debug?.isInfiniteMp);
 
-          const hastedAlly = alivePlayers.find(c => c.effects.some((e: any) => e.id === 'SPD_UP'));
-          if (hastedAlly && Math.random() < 0.8) {
-              selectedSkillId = getValidSkill('slow');
-              if (!provokedBy) targets = [hastedAlly.id];
-          } else if (Math.random() < 0.6) {
-              selectedSkillId = getValidSkill('curse');
-          } else {
-              selectedSkillId = getValidSkill('slow');
-          }
+      availableSkills.forEach((skill: any) => {
+        let validTargets: any[] = [];
+        
+        if (skill.target === 'enemy_single') {
+          validTargets = provokedBy ? [provokedBy] : opposingTeam;
+        } else if (skill.target === 'ally_single') {
+          validTargets = alliedTeam;
+        } else if (skill.target === 'enemy_all') {
+          validTargets = [opposingTeam]; // Array of array
+        } else if (skill.target === 'ally_all') {
+          validTargets = [alliedTeam];
+        } else if (skill.target === 'ally_dead') {
+          validTargets = deadAllies;
+        } else if (['focus', 'renki', 'prayer'].includes(skill.id)) {
+          validTargets = [actor];
         }
+
+        validTargets.forEach(targetGroup => {
+          const evalTarget = Array.isArray(targetGroup) ? targetGroup[0] : targetGroup;
+          if (!evalTarget) return;
+
+          const score = calculateUtilityScore(actor, skill, evalTarget, characters);
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestAction = { 
+              skill, 
+              targets: Array.isArray(targetGroup) ? targetGroup.map(t => t.id) : [targetGroup.id] 
+            };
+          }
+        });
+      });
+
+      const finalAction = bestAction as { skill: any, targets: string[] } | null;
+      if (finalAction) {
+        setUsedSkills(prev => ({ ...prev, [actor.id]: [...(prev[actor.id] || []), finalAction.skill.id] }));
+        executeAction(actor.id, finalAction.skill, finalAction.targets, characters);
       } else {
-        // --- ALLY AI ---
-        if (actor.id === 'p1') { // Ars: DPS / Break
-          if (actor.mp < 15 && actor.hp > actor.maxHp * 0.3) {
-            selectedSkillId = getValidSkill('renki');
-            targets = [actor.id];
-          } else {
-            const target = aliveEnemies.find(e => !e.effects.some((ef: any) => ef.id === 'DEF_DOWN')) || [...aliveEnemies].sort((a, b) => a.hp - b.hp)[0];
-            if (!provokedBy) targets = [target.id];
-
-            if (!target.effects.some((ef: any) => ef.id === 'DEF_DOWN') && actor.mp >= (SKILLS as any).armor_break.cost) {
-              selectedSkillId = getValidSkill('armor_break');
-            } else {
-              selectedSkillId = getValidSkill('power_slash');
-            }
-          }
-        } else if (actor.id === 'p2') { // Luna: AoE / Control
-          if (aliveEnemies.length >= 2 && actor.mp >= (SKILLS as any).meteor.cost) {
-            selectedSkillId = getValidSkill('meteor');
-          } else {
-            const fastEnemy = aliveEnemies.find(e => e.spd >= 25 && !e.effects.some((ef: any) => ef.id === 'SPD_DOWN'));
-            const target = fastEnemy || [...aliveEnemies].sort((a, b) => b.hp - a.hp)[0];
-            if (!provokedBy) targets = [target.id];
-
-            if (fastEnemy && actor.mp >= (SKILLS as any).slow.cost) {
-              selectedSkillId = getValidSkill('slow');
-            } else if (actor.mp >= (SKILLS as any).fireball.cost) {
-              selectedSkillId = getValidSkill('fireball');
-            } else if (actor.mp < 10) {
-              selectedSkillId = getValidSkill('focus');
-              targets = [actor.id];
-            }
-          }
-        } else if (actor.id === 'p3') { // Cecil: Healer / Support
-          const lowHpAlly = alivePlayers.find(p => p.hp < p.maxHp * 0.5);
-          const debuffedAlly = alivePlayers.find(p => p.effects.some((e: any) => e.type === 'bad'));
-
-          if (deadPlayers.length > 0 && actor.mp >= (SKILLS as any).resurrect.cost) {
-            selectedSkillId = getValidSkill('resurrect');
-            targets = [deadPlayers[0].id];
-          } else if (alivePlayers.filter(p => p.hp < p.maxHp * 0.6).length >= 2 && actor.mp >= (SKILLS as any).area_heal.cost) {
-            selectedSkillId = getValidSkill('area_heal');
-          } else if (lowHpAlly && actor.mp >= (SKILLS as any).heal.cost) {
-            selectedSkillId = getValidSkill('heal');
-            targets = [lowHpAlly.id];
-          } else if (debuffedAlly && actor.mp >= (SKILLS as any).cure.cost) {
-            selectedSkillId = getValidSkill('cure');
-            targets = [debuffedAlly.id];
-          } else if (actor.mp < 20) {
-            selectedSkillId = getValidSkill('prayer');
-            targets = [actor.id];
-          } else if (actor.mp >= (SKILLS as any).protect.cost) {
-            selectedSkillId = getValidSkill('protect');
-            targets = [alivePlayers.find(p => p.id === 'p1' || p.id === 'p2')?.id || actor.id];
-          }
-        } else if (actor.id === 'p4') { // Shion: Debuff / Support
-          const unpoisonedEnemy = aliveEnemies.find(e => !e.effects.some((ef: any) => ef.id === 'POISON'));
-          const unhastedAlly = alivePlayers.find(p => !p.effects.some((ef: any) => ef.id === 'SPD_UP'));
-          const boss = aliveEnemies.find(e => e.id === 'e1');
-
-          if (boss && actor.mp >= (SKILLS as any).smoke_bomb.cost && !boss.effects.some((e: any) => e.id === 'ATK_DOWN')) {
-            selectedSkillId = getValidSkill('smoke_bomb');
-          } else if (unpoisonedEnemy && actor.mp >= (SKILLS as any).poison_dagger.cost) {
-            selectedSkillId = getValidSkill('poison_dagger');
-            if (!provokedBy) targets = [unpoisonedEnemy.id];
-          } else if (unhastedAlly && actor.mp >= (SKILLS as any).haste.cost) {
-            selectedSkillId = getValidSkill('haste');
-            targets = [unhastedAlly.id];
-          } else if (actor.mp >= (SKILLS as any).drain_dagger.cost && actor.hp < actor.maxHp * 0.8) {
-            selectedSkillId = getValidSkill('drain_dagger');
-            if (!provokedBy) targets = [aliveEnemies[0].id];
-          } else {
-            selectedSkillId = 'attack';
-          }
+        // Fallback
+        const fallbackSkill = (SKILLS as any)['attack'];
+        const target = provokedBy ? provokedBy : opposingTeam[0];
+        if (target) {
+          executeAction(actor.id, fallbackSkill, [target.id], characters);
         }
       }
 
-      let finalSkill = (SKILLS as any)[selectedSkillId];
-
-      if (targets.length === 0) {
-        if (finalSkill.target === 'enemy_single') targets = [[...opposingTeam].sort((a, b) => a.hp - b.hp)[0].id];
-        else if (finalSkill.target === 'enemy_all') targets = opposingTeam.map(c => c.id);
-        else if (finalSkill.target === 'ally_single') targets = [actor.id];
-        else if (finalSkill.target === 'ally_all') targets = (actor.isEnemy ? aliveEnemies : alivePlayers).map(c => c.id);
-        else if (finalSkill.target === 'ally_dead') {
-           const deadAllies = characters.filter(c => c.isEnemy === actor.isEnemy && c.isDead);
-           if (deadAllies.length > 0) targets = [deadAllies[0].id];
-           else {
-             finalSkill = (SKILLS as any)['attack'];
-             targets = [[...opposingTeam].sort((a, b) => a.hp - b.hp)[0].id];
-           }
-        }
-      }
-
-      executeAction(actor.id, finalSkill, targets, characters);
     }, 300);
 
     return () => {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [battleState, characters, currentActorId, executeAction, isAutoBattle]);
+  }, [battleState, characters, currentActorId, executeAction, isAutoBattle, calculateUtilityScore]);
 
   const generateSimulatedTimeline = useCallback(() => {
     let simChars = characters.filter(c => !c.isDead && !c.debug?.isFrozen).map(c => ({
@@ -643,6 +657,12 @@ export const useBattleSystem = () => {
     getEffectiveStats,
     isAutoBattle,
     setIsAutoBattle,
-    resetBattle
+    resetBattle,
+    undoTurn,
+    history,
+    enemyKnowledge,
+    setEnemyKnowledge,
+    aiCoverageMode,
+    setAiCoverageMode
   };
 };
