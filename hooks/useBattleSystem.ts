@@ -24,18 +24,19 @@ export const useBattleSystem = () => {
   const [battleCount, setBattleCount] = useState(0);
 
   // --- Advanced AI & Debug States ---
-  const [enemyKnowledge, setEnemyKnowledge] = useState<Record<string, EnemyKnowledge>>({});
+  const [enemyKnowledge, setEnemyKnowledge] = useState<Record<string, EnemyKnowledge>>(() => {
+    if (typeof window === 'undefined') return {};
+    const saved = localStorage.getItem('ctb_enemy_knowledge');
+    if (!saved) return {};
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return {};
+    }
+  });
   const [history, setHistory] = useState<any[]>([]);
   const [aiCoverageMode, setAiCoverageMode] = useState(false);
   const [usedSkills, setUsedSkills] = useState<Record<string, string[]>>({});
-
-  // Load Knowledge on Mount
-  useEffect(() => {
-    const saved = localStorage.getItem('ctb_enemy_knowledge');
-    if (saved) {
-      try { setEnemyKnowledge(JSON.parse(saved)); } catch (e) {}
-    }
-  }, []);
 
   // Save Knowledge on Battle End
   useEffect(() => {
@@ -340,7 +341,7 @@ export const useBattleSystem = () => {
       }, 300);
 
     }, 150); 
-  }, [getEffectiveStats, addLog, appendDetailedLog, endTurn, playSound]);
+  }, [getEffectiveStats, addLog, appendDetailedLog, endTurn, playSound, logs, detailedLogs, currentActorId]);
 
   const handleTurnStartEffects = useCallback((actorId: string, currentChars: any[]) => {
     let charsCopy = [...currentChars];
