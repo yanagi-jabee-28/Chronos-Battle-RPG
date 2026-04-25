@@ -132,7 +132,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({ actor, battleState, targ
                </div>
             )}
 
-            {(battleState === 'THINKING' || battleState === 'ENEMY_AI' || battleState === 'ALLY_AI') && (
+            {(battleState === 'THINKING' || battleState === 'AI_THINKING') && (
               <div className="flex-grow flex flex-col items-center justify-center text-slate-500 italic gap-3">
                 <div className="flex gap-1">
                   <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-1.5 h-1.5 bg-slate-600 rounded-full" />

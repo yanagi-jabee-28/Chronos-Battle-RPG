@@ -8,10 +8,10 @@ import { CharacterCard } from './CharacterCard';
 import { ActionMenu } from './ActionMenu';
 import { LogPanel } from './LogPanel';
 import { DebugPanel } from './DebugPanel';
-import { BG_IMAGE } from '@/constants/game-data';
+import { APP_LAST_UPDATED, BG_IMAGE } from '@/constants/game-data';
 import { generateGameAssets } from '@/lib/asset-generator';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings } from 'lucide-react';
+import { Settings, Activity } from 'lucide-react';
 import Image from 'next/image';
 
 export const BattleField: React.FC = () => {
@@ -79,7 +79,22 @@ export const BattleField: React.FC = () => {
 
   const handleCopyLogs = () => {
     playSound('select');
-    navigator.clipboard.writeText(detailedLogs);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(detailedLogs);
+    } else {
+      // Fallback for environments where clipboard is not available (e.g. non-HTTPS)
+      const textArea = document.createElement("textarea");
+      textArea.value = detailedLogs;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
+      }
+      document.body.removeChild(textArea);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -96,7 +111,7 @@ export const BattleField: React.FC = () => {
       executeAction(actor.id, skill, characters.filter(c => c.isEnemy && !c.isDead).map(c => c.id), characters);
     } else if (skill.target === 'ally_all') {
       executeAction(actor.id, skill, characters.filter(c => !c.isEnemy && !c.isDead).map(c => c.id), characters);
-    } else if (['focus', 'renki', 'prayer'].includes(skill.id)) {
+    } else if (skill.target === 'self' || ['renki', 'prayer'].includes(skill.id)) {
       executeAction(actor.id, skill, [actor.id], characters);
     } else {
       if (skill.target === 'enemy_single') setTargetSelectionMode('enemy');
@@ -135,8 +150,24 @@ export const BattleField: React.FC = () => {
 
       <div className="relative z-10 max-w-6xl mx-auto w-full h-full flex flex-col p-2 md:p-4 overflow-hidden">
         {/* Top Bar: Timeline */}
-        <div className="flex-shrink-0 h-[10vh] min-h-[60px] mb-2">
-          <Timeline timeline={timeline} currentActorId={currentActorId} />
+        <div className="flex-shrink-0 h-[10vh] min-h-[60px] mb-2 flex items-center gap-4">
+          <div className="flex-grow">
+            <Timeline timeline={timeline} currentActorId={currentActorId} />
+          </div>
+          <button
+            onClick={() => {
+              playSound('click');
+              setIsAutoBattle(!isAutoBattle);
+            }}
+            className={`px-4 py-2 h-12 rounded-lg font-black transition-all border-2 flex items-center gap-2 flex-shrink-0 text-sm
+              ${isAutoBattle 
+                ? 'bg-yellow-500 border-yellow-400 text-slate-900 shadow-[0_0_15px_rgba(234,179,8,0.5)]' 
+                : 'bg-slate-800 border-slate-700 text-slate-400 opacity-60 hover:opacity-100'}
+            `}
+          >
+            <Activity size={18} className={isAutoBattle ? 'animate-spin' : ''} />
+            <span className="hidden sm:inline">AUTO</span> {isAutoBattle ? 'ON' : 'OFF'}
+          </button>
         </div>
 
         {/* Main Battle Area */}
@@ -212,6 +243,10 @@ export const BattleField: React.FC = () => {
       >
         <Settings size={20} className={showDebug ? 'text-yellow-400 rotate-90' : 'text-slate-400'} />
       </button>
+
+      <div className="fixed bottom-4 left-4 z-30 rounded-full border border-slate-700/50 bg-slate-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 backdrop-blur-md shadow-lg">
+        Updated {APP_LAST_UPDATED}
+      </div>
 
       {/* Debug Panel Overlay */}
       <AnimatePresence>
