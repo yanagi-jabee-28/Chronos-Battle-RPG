@@ -49,19 +49,20 @@ export const SKILLS = {
   vanguard: { id: 'vanguard', name: '不屈の号令', type: 'buff', target: 'ally_all', effect: 'SPD_UP', stackAmount: 1, stackLimit: 2, cost: 20, description: '味方全体の速度↑。敵より先に動くための鍵' },
   dark_command: { id: 'dark_command', name: '暗黒の号令', type: 'buff', target: 'ally_all', effect: 'ATK_UP', stackAmount: 1, stackLimit: 2, cost: 15, description: '敵全体の攻撃力を上げる' },
   dark_mist: { id: 'dark_mist', name: 'ポイズンミスト', type: 'status', target: 'enemy_all', effect: 'POISON', stackAmount: 1, stackLimit: 3, cost: 20, description: '全体に毒付与' },
+  death_bringer: { id: 'death_bringer', name: 'デスブリンガー', type: 'damage_phys', power: 3.5, target: 'enemy_single', cost: 40, postWaitMultiplier: 1.5, description: '単体に即死級ダメージ。発動後に隙が生じる' },
 } as const;
 
 export const DEFAULT_DEBUG_FLAGS = { isFrozen: false, isInvincible: false, isInfiniteMp: false };
-export const APP_LAST_UPDATED = '2026-04-25 Enemy-Synergy-Update';
+export const APP_LAST_UPDATED = '2026-04-25 Boss-Phase-AI-Update';
 
 export const INITIAL_CHARACTERS = [
   { id: 'p1', name: '剣士アルス', isEnemy: false, hp: 140, maxHp: 140, mp: 50, maxMp: 50, atk: 30, def: 20, spd: 25, skills: ['attack', 'power_slash', 'armor_break', 'warcry', 'renki', 'vanguard'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'OFFENSE', imageUrl: 'https://picsum.photos/seed/fantasy-swordsman-ars/400/600' },
   { id: 'p2', name: '魔術師ルナ', isEnemy: false, hp: 80, maxHp: 80, mp: 100, maxMp: 100, atk: 40, def: 14, spd: 22, skills: ['attack', 'fireball', 'meteor', 'slow', 'focus', 'dispel'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'CONSERVE_MP', imageUrl: 'https://picsum.photos/seed/fantasy-mage-luna/400/600' },
   { id: 'p3', name: '神官セシル', isEnemy: false, hp: 110, maxHp: 110, mp: 90, maxMp: 90, atk: 25, def: 18, spd: 20, skills: ['attack', 'holy', 'heal', 'area_heal', 'cure', 'blessing', 'protect', 'resurrect', 'prayer', 'phalanx'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'SURVIVAL', imageUrl: 'https://picsum.photos/seed/fantasy-priest-cecil/400/600' },
   { id: 'p4', name: '盗賊シオン', isEnemy: false, hp: 100, maxHp: 100, mp: 60, maxMp: 60, atk: 22, def: 15, spd: 35, skills: ['attack', 'poison_dagger', 'drain_dagger', 'stun_blow', 'haste', 'smoke_bomb', 'mana_steal'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'SURVIVAL', imageUrl: 'https://picsum.photos/seed/fantasy-thief-shion/400/600' },
-  { id: 'e1', name: '魔将軍', isEnemy: true, hp: 500, maxHp: 500, mp: 300, maxMp: 300, atk: 22, def: 24, spd: 18, skills: ['attack', 'demon_slash', 'dark_command', 'boss_aura'], effects: [], resistances: ['STUN'], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'OFFENSE', imageUrl: 'https://picsum.photos/seed/dark-knight-boss/600/800' },
-  { id: 'e2', name: '重装兵', isEnemy: true, hp: 400, maxHp: 400, mp: 100, maxMp: 100, atk: 18, def: 40, spd: 14, skills: ['attack', 'guard_stance', 'dark_heal', 'provoke'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'SURVIVAL', imageUrl: 'https://picsum.photos/seed/armored-soldier/400/600' },
-  { id: 'e3', name: '妖術師', isEnemy: true, hp: 150, maxHp: 150, mp: 180, maxMp: 180, atk: 24, def: 12, spd: 32, skills: ['attack', 'dark_mist', 'curse', 'clear', 'slow'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'CONSERVE_MP', imageUrl: 'https://picsum.photos/seed/dark-mage/400/600' },
+  { id: 'e1', name: '魔将軍', isEnemy: true, hp: 600, maxHp: 600, mp: 300, maxMp: 300, atk: 26, def: 24, spd: 22, skills: ['attack', 'demon_slash', 'dark_command', 'boss_aura', 'death_bringer'], effects: [], resistances: ['STUN'], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'OFFENSE', imageUrl: 'https://picsum.photos/seed/dark-knight-boss/600/800' },
+  { id: 'e2', name: '重装兵', isEnemy: true, hp: 400, maxHp: 400, mp: 100, maxMp: 100, atk: 18, def: 40, spd: 14, skills: ['attack', 'provoke', 'stun_blow'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'SURVIVAL', imageUrl: 'https://picsum.photos/seed/armored-soldier/400/600' },
+  { id: 'e3', name: '妖術師', isEnemy: true, hp: 180, maxHp: 180, mp: 180, maxMp: 180, atk: 24, def: 12, spd: 32, skills: ['attack', 'dark_mist', 'slow', 'dark_heal'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'CONSERVE_MP', imageUrl: 'https://picsum.photos/seed/dark-mage/400/600' },
 ];
 
 export const BASE_WAIT_TIME = 1000;

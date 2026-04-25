@@ -718,54 +718,60 @@ export const useBattleSystem = () => {
         if (actor.id === 'e1') {
           // 【魔将軍：指揮官AI】
           const aliveMinions = aliveAllies.filter(c => c.id !== 'e1').length;
+          
           if (aliveMinions > 0) {
+            // 【フェーズ1：指揮官モード】取り巻きがいる場合
             const needsBuff = aliveAllies.some(c => !c.effects.some((e: any) => e.id === 'ATK_UP'));
-            if (needsBuff && Math.random() < 0.6) {
-              selectedSkillId = getValidSkill('dark_command');
-              targetIds = aliveAllies.map(c => c.id);
+            if (needsBuff && Math.random() < 0.7) {
+                selectedSkillId = getValidSkill('dark_command'); // 全体火力UPを最優先
+                targetIds = aliveAllies.map(c => c.id);
             } else {
-              selectedSkillId = Math.random() < 0.3 ? getValidSkill('demon_slash') : 'attack';
-              if (selectedSkillId === 'demon_slash') targetIds = aliveEnemies.map(c => c.id);
-              else targetIds = [aliveEnemies[0]?.id];
+                selectedSkillId = Math.random() < 0.4 ? getValidSkill('demon_slash') : 'attack'; // 様子見の全体攻撃
             }
           } else {
-            // 本気モード
+            // 【フェーズ2：狂乱モード】取り巻き全滅時
             const hasAura = actor.effects.some((e: any) => e.id === 'ATK_UP');
             if (!hasAura) {
-              selectedSkillId = getValidSkill('boss_aura');
-              targetIds = [actor.id];
+                // まず己の限界を超える
+                selectedSkillId = getValidSkill('boss_aura');
+                targetIds = [actor.id];
             } else {
-              selectedSkillId = getValidSkill('demon_slash');
-              targetIds = aliveEnemies.map(c => c.id);
+                // 手加減なしの確殺モード
+                if (Math.random() < 0.5) {
+                    selectedSkillId = getValidSkill('death_bringer');
+                    // 一番HPが残っている元気なプレイヤーを優先して潰しにいく
+                    targetIds = [[...aliveEnemies].sort((a, b) => b.hp - a.hp)[0].id];
+                } else {
+                    selectedSkillId = getValidSkill('demon_slash');
+                }
             }
           }
         } else if (actor.id === 'e2') {
-          // 【重装兵：タンクAI】
+          // 【重装兵：壁役AI】
           const hasProvoke = actor.effects.some((e: any) => e.id === 'PROVOKE');
-          const teamNeedsDef = aliveAllies.some(c => !c.effects.some((e: any) => e.id === 'DEF_UP'));
-          
           if (!hasProvoke) {
-            selectedSkillId = getValidSkill('provoke');
-            targetIds = [actor.id];
-          } else if (teamNeedsDef && Math.random() < 0.5) {
-            selectedSkillId = getValidSkill('guard_stance');
-            targetIds = aliveAllies.map(c => c.id);
+              selectedSkillId = getValidSkill('provoke'); // 常にヘイトを集め続ける
+              targetIds = [actor.id];
           } else {
-            selectedSkillId = 'attack';
-            targetIds = [aliveEnemies[0]?.id];
+              selectedSkillId = Math.random() < 0.6 ? getValidSkill('stun_blow') : 'attack'; // 隙あらばスタンを狙う
           }
         } else if (actor.id === 'e3') {
-          // 【妖術師：ジャマーAI】
+          // 【妖術師：ヒーラー＆ジャマーAI】
+          // 最優先：傷ついた味方（特に重装兵やボス）の回復
+          const hurtAlly = aliveAllies.find(c => c.hp < c.maxHp * 0.7);
           const enemiesWithoutPoison = aliveEnemies.filter(c => !c.effects.some((e: any) => e.id === 'POISON'));
-          if (enemiesWithoutPoison.length > 0 && Math.random() < 0.7) {
-            selectedSkillId = getValidSkill('dark_mist');
-            targetIds = aliveEnemies.map(c => c.id);
+
+          if (hurtAlly) {
+              selectedSkillId = getValidSkill('dark_heal');
+              targetIds = [hurtAlly.id];
+          } else if (enemiesWithoutPoison.length > 0 && Math.random() < 0.8) {
+              selectedSkillId = getValidSkill('dark_mist'); // 毒を撒く
+              targetIds = aliveEnemies.map(c => c.id);
           } else if (Math.random() < 0.5) {
-            selectedSkillId = getValidSkill('slow');
-            targetIds = [[...aliveEnemies].sort((a, b) => b.spd - a.spd)[0]?.id];
+              selectedSkillId = getValidSkill('slow');
+              targetIds = [[...aliveEnemies].sort((a, b) => b.spd - a.spd)[0].id]; // 最も早いプレイヤーの足を折る
           } else {
-            selectedSkillId = 'attack';
-            targetIds = [aliveEnemies[0]?.id];
+              selectedSkillId = 'attack';
           }
         } else {
           // 汎用敵AIフォールバック
@@ -775,6 +781,14 @@ export const useBattleSystem = () => {
         }
 
         const skill = (SKILLS as any)[selectedSkillId];
+
+        // ターゲットが未決定の場合のフォールバック
+        if (targetIds.length === 0) {
+          if (skill.target === 'enemy_single') targetIds = [[...aliveEnemies].sort((a, b) => a.hp - b.hp)[0].id]; // HPが低い奴を狙う
+          else if (skill.target === 'enemy_all') targetIds = aliveEnemies.map(c => c.id);
+          else if (skill.target === 'ally_single') targetIds = [actor.id];
+          else if (skill.target === 'ally_all') targetIds = aliveAllies.map(c => c.id);
+        }
         
         console.log(`\n=== ENEMY AI: ${actor.name} ===`);
         console.log(`  => SELECTED: [${skill.id}] -> ${targetIds.join(', ')}\n`);
