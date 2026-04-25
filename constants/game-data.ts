@@ -53,7 +53,7 @@ export const SKILLS = {
 } as const;
 
 export const DEFAULT_DEBUG_FLAGS = { isFrozen: false, isInvincible: false, isInfiniteMp: false };
-export const APP_LAST_UPDATED = '2026-04-25 README-Links-Update';
+export const APP_LAST_UPDATED = '2026-04-26 Workflow-Optimization';
 
 export const INITIAL_CHARACTERS = [
   { id: 'p1', name: '剣士アルス', isEnemy: false, hp: 140, maxHp: 140, mp: 50, maxMp: 50, atk: 30, def: 20, spd: 25, skills: ['attack', 'power_slash', 'armor_break', 'warcry', 'renki', 'vanguard'], effects: [], resistances: [], wait: 0, isDead: false, debug: { ...DEFAULT_DEBUG_FLAGS }, tactic: 'OFFENSE', imageUrl: 'https://picsum.photos/seed/fantasy-swordsman-ars/400/600' },
