@@ -1,25 +1,30 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # Chronos Battle RPG
 
-- **GitHub Repository**: https://github.com/yanagi-jabee-28/Chronos-Battle-RPG
-- **Play Game**: https://yanagi-jabee-28.github.io/Chronos-Battle-RPG/
+A high-performance, visually stunning RPG battle system built with Next.js and Framer Motion.
 
-# Run and deploy your AI Studio app
+## 🚀 Key Features
 
-This contains everything you need to run your app locally.
+- **CTB (Conditional Turn-Based) System**: Dynamic turn ordering based on character speed and action delay.
+- **Utility-Based AI**: Intelligent automated decision-making for both enemies and allies.
+- **Strategic Combat**: Status effects, elemental resistances, and unique character roles (Tank, Mage, Priest, Swordsman).
+- **Time Travel Debugging**: Undo functionality and GM tools for testing complex battle scenarios.
+- **Rich Visuals**: Pulsating auras, screen flashes, and fluid animations for an immersive experience.
 
-View your app in AI Studio: https://ai.studio/apps/adeda2bf-e00b-4fb9-99b0-17a56cd33e8a
+## 🏗️ Architecture
 
-## Run Locally
+The project follows a modular, "FSD-lite" architecture for maximum maintainability:
 
-**Prerequisites:**  Node.js
+### Core Layers
+- **`/hooks/battle`**: Modularized logic hooks (`useBattleState`, `useBattleActions`, `useBattleAI`, `useBattleLifecycle`).
+- **`/lib/battle`**: Pure business logic engine (damage formulas, speed calculations).
+- **`/components/battle/ui`**: Atomic UI components for reusability.
+- **`/types`**: Strict TypeScript definitions for the entire game domain.
 
+## 🛠️ Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **Animation**: Framer Motion (motion/react)
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 📖 Documentation
+Detailed technical documentation can be found in [ARCHITECTURE.md](./ARCHITECTURE.md).

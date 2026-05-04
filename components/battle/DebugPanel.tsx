@@ -3,8 +3,10 @@
 import React from 'react';
 import { Settings, Zap, Shield, Snowflake, Clipboard, Check, Skull, Undo2, Brain, Download, Upload } from 'lucide-react';
 
+import { Character, EnemyKnowledge } from '@/types/battle';
+
 interface DebugPanelProps {
-  characters: any[];
+  characters: Character[];
   onToggleDebug: (charId: string, flag: string) => void;
   onCopyLogs: () => void;
   onGenerateAssets: () => void;
@@ -14,8 +16,8 @@ interface DebugPanelProps {
   canUndo: boolean;
   aiCoverageMode: boolean;
   onToggleAiCoverage: () => void;
-  enemyKnowledge: any;
-  onImportKnowledge: (data: any) => void;
+  enemyKnowledge: Record<string, EnemyKnowledge>;
+  onImportKnowledge: (data: Record<string, EnemyKnowledge>) => void;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({ 

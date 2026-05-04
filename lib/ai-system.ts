@@ -1,6 +1,6 @@
 import { SKILLS, STATUS_EFFECTS } from '@/constants/game-data';
+import { TacticType } from '@/types/battle';
 
-export type TacticType = 'MANUAL' | 'OFFENSE' | 'CONSERVE_MP' | 'NO_MP' | 'SURVIVAL';
 
 // 行動候補の型
 export interface ActionCandidate {

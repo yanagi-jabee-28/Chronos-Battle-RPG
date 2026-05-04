@@ -3,8 +3,15 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 
+interface TimelineItem {
+  id: string;
+  name: string;
+  isEnemy: boolean;
+  wait: number;
+}
+
 interface TimelineProps {
-  timeline: any[];
+  timeline: TimelineItem[];
   currentActorId: string | null;
 }
 
