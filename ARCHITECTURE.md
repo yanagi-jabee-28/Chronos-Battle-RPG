@@ -30,20 +30,26 @@ The project follows a modular structure inspired by Feature-Sliced Design (FSD),
 - **UI Constants**: Colors, animations, and image URLs.
 
 ### 3. Lib (`/lib`)
-- **Pure Functions**: Logic that doesn't depend on React state (e.g., damage formulas).
-- **Stateless Engines**: AI decision-making algorithms and timeline simulators.
+- **Pure Functions**: Logic that doesn't depend on React state or browser APIs.
+- **Deterministic Engine**: `engine.ts` centralizes damage formulas, status effect logic, and speed-based wait time calculations.
+- **AI Algorithms**: Stateless threat analysis and decision-making logic.
 
 ### 4. Hooks (`/hooks`)
-- **Stateful Logic**: Managing the complex state transitions of the battle.
-- **Composition**: Small hooks (State, Actions, AI) are composed into a unified `useBattleSystem`.
+- **Modular State Management**: Complex battle logic is decomposed into:
+    - `useBattleState`: Low-level state and logs.
+    - `useBattleActions`: Pure state transitions (Damage, Buffs).
+    - `useBattleAI`: Utility-based decision logic.
+    - `useBattleLifecycle`: Turn progression and initialization.
+    - `useBattleAssets`: Dynamic asset management and image generation.
+- **Orchestration**: The main `useBattleSystem` hook orchestrates these specialized hooks into a unified API.
 
 ### 5. Components (`/components`)
-- **Presentation Layer**: React components focused on rendering the battle state.
-- **Modularization**: Large components like `CharacterCard` are split into specialized sub-components for better performance and reusability.
+- **Presentation Layer**: React components focused on rendering the battle state with Framer Motion.
+- **Performance**: Large components are split into specialized sub-components (e.g., `CharacterCard` -> `HealthBar`, `StatusIcons`) to minimize unnecessary re-renders.
 
 ## Key Design Principles
 
-1. **Separation of Concerns**: Business logic (how damage is calculated) is separated from state management (how the UI updates) and presentation (how the health bar looks).
-2. **Deterministic Engine**: The core battle logic should be predictable and testable.
-3. **Reactive UI**: Using Framer Motion (motion/react) for a fluid, dynamic battle experience.
-4. **Maintenance Limit**: Files should aim to be under **200 lines** to maintain readability.
+1. **Separation of Concerns**: Business logic is separated from state management and presentation.
+2. **Deterministic Engine**: The core battle logic is predictable, enabling features like Time Travel (Undo).
+3. **Maintenance Limit**: To ensure extreme maintainability, all files MUST aim to be under **200 lines**. If a file exceeds this, it should be refactored into smaller, focused modules.
+4. **Traceability**: The `APP_LAST_UPDATED` constant in `constants/game-data.ts` must be updated manually with every major architectural change to provide clear versioning in the UI.
