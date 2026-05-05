@@ -54,7 +54,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ char, isCurrent, i
       
       {/* Background Image */}
       <div className="absolute inset-0 opacity-10 pointer-events-none">
-        {char.imageUrl && <Image src={char.imageUrl} alt={char.name} fill className="object-cover" referrerPolicy="no-referrer" />}
+        {char.imageUrl && <Image src={char.imageUrl} alt={char.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 33vw" referrerPolicy="no-referrer" />}
       </div>
 
       <div className="relative z-10 flex flex-col h-full justify-between">

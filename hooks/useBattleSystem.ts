@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { INITIAL_CHARACTERS, BASE_WAIT_TIME, SKILLS } from '@/constants/game-data';
 import { useAudio } from './useAudio';
 import { useBattleState } from './battle/useBattleState';
@@ -11,15 +11,25 @@ import { generateSimulatedTimeline, calculateWaitTime, calculateEffectiveStats }
 import { SkillDefinition, Character } from '@/types/battle';
 
 export const useBattleSystem = () => {
+  // Modular Hooks
+  const state = useBattleState();
   const { playSound } = useAudio();
+  
   const [selectedSkill, setSelectedSkill] = useState<SkillDefinition | null>(null);
   const [targetSelectionMode, setTargetSelectionMode] = useState<string | false>(false);
   const [isAutoBattle, setIsAutoBattle] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
+  
+  const handleStartBattle = useCallback(() => {
+    playSound('click');
+    setIsStarted(true);
+    if (state.battleState === 'INIT') {
+      state.setBattleState('INIT'); // Re-trigger init
+    }
+  }, [state.battleState, playSound]);
+
   const [aiCoverageMode, setAiCoverageMode] = useState(false);
   const [usedSkills, setUsedSkills] = useState<Record<string, string[]>>({});
-
-  // Modular Hooks
-  const state = useBattleState();
   const actions = useBattleActions(
     state.characters, state.setCharacters, 
     state.addLog, state.appendDetailedLog, 
@@ -39,7 +49,9 @@ export const useBattleSystem = () => {
 
   // --- Orchestrated Actions ---
 
-  const executeAction = useCallback((actorId: string, skill: SkillDefinition, targetIds: string[]) => {
+  const executeAction = useCallback((actorId: string, skill: SkillDefinition, targetIds: string[], forceFrenzy?: boolean) => {
+    console.group(`⚔️ Execute Action: ${skill.name}`);
+    console.log('[BattleSystem] Actor:', actorId, 'Targets:', targetIds);
     // Snapshot state for Undo
     state.pushHistory({
       characters: state.characters,
@@ -52,9 +64,11 @@ export const useBattleSystem = () => {
     state.setBattleState('EXECUTING');
     
     setTimeout(() => {
-      const updatedChars = actions.executeAction(actorId, skill, targetIds);
+      let updatedChars = actions.executeAction(actorId, skill, targetIds);
       
-      // Update AI Knowledge & Statistics
+      if (forceFrenzy) {
+        updatedChars = updatedChars.map(c => c.id === actorId ? { ...c, frenzyMode: true } : c);
+      }
       state.setEnemyKnowledge(prev => ({
         ...prev,
         [actorId]: {
@@ -77,7 +91,9 @@ export const useBattleSystem = () => {
         setSelectedSkill(null);
         setTargetSelectionMode(false);
         state.setCurrentActorId(null);
+        console.log('[BattleSystem] Turn processing complete. Requesting re-calculation.');
         state.setBattleState('CALCULATING');
+        console.groupEnd();
       }, 300);
     }, 150);
   }, [state, actions]);
@@ -108,22 +124,29 @@ export const useBattleSystem = () => {
   // Initialization
   useEffect(() => {
     if (state.battleState === 'INIT') {
+      console.log('[BattleSystem] Initializing battle characters...');
       const initChars = INITIAL_CHARACTERS.map(c => ({
         ...c,
         wait: calculateWaitTime(c.spd, BASE_WAIT_TIME) + Math.floor(Math.random() * 10)
       }));
       state.setCharacters(initChars as Character[]);
       state.addLog('戦闘開始！');
+      console.log('[BattleSystem] Init complete. State -> CALCULATING');
       state.setBattleState('CALCULATING');
     }
   }, [state.battleState]);
 
-  // Turn Progression
+  // Turn Progression (Stable Execution)
+  const advanceTurnRef = useRef(lifecycle.advanceTurn);
   useEffect(() => {
-    if (state.battleState === 'CALCULATING') {
-      lifecycle.advanceTurn();
+    advanceTurnRef.current = lifecycle.advanceTurn;
+  }, [lifecycle.advanceTurn]);
+
+  useEffect(() => {
+    if (isStarted && state.battleState === 'CALCULATING') {
+      advanceTurnRef.current();
     }
-  }, [state.battleState, lifecycle]);
+  }, [isStarted, state.battleState]);
 
   // AI Thinking
   useEffect(() => {
@@ -132,14 +155,14 @@ export const useBattleSystem = () => {
         const decision = ai.decideAction(state.currentActorId!);
         if (decision) {
           const skill = (SKILLS as any)[decision.skillId];
-          executeAction(state.currentActorId!, skill, decision.targetIds);
+          executeAction(state.currentActorId!, skill, decision.targetIds, (decision as any).forceFrenzy);
         }
       }, 1000);
       return () => clearTimeout(timer);
     }
   }, [state.battleState, ai, state.currentActorId, executeAction]);
 
-  return {
+  return useMemo(() => ({
     ...state,
     selectedSkill, setSelectedSkill,
     targetSelectionMode, setTargetSelectionMode,
@@ -148,8 +171,13 @@ export const useBattleSystem = () => {
     executeAction,
     undoTurn,
     resetBattle,
+    isStarted,
+    handleStartBattle,
     generateSimulatedTimeline: () => generateSimulatedTimeline(state.characters, BASE_WAIT_TIME),
     analyzeFutureThreats: (timeline: any[]) => ai.analyzeFutureThreats(timeline, state.characters),
     predictEnemyAction: ai.predictEnemyAction
-  };
+  }), [
+    state, selectedSkill, targetSelectionMode, isAutoBattle, aiCoverageMode, 
+    executeAction, undoTurn, resetBattle, isStarted, handleStartBattle, ai.analyzeFutureThreats, ai.predictEnemyAction
+  ]);
 };

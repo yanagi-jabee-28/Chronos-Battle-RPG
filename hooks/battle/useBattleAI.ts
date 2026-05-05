@@ -58,10 +58,12 @@ export const useBattleAI = (
 
     // Boss/Minion Specific Scripted Logic
     if (actor.isEnemy) {
+      console.log(`[AI] Thinking for Enemy: ${actor.name}`);
       return decideEnemyAction(actor, characters, addLog);
     }
 
     // Generic Utility-based AI for allies (Auto-Battle)
+    console.log(`[AI] Thinking for Ally (Auto): ${actor.name}`);
     return determineBestAction(actor, characters, actor.tactic);
   }, [characters, addLog]);
 
@@ -84,6 +86,7 @@ const decideEnemyAction = (actor: Character, characters: Character[], addLog: (m
     
     if (aliveMinions === 0) {
       if (!actor.frenzyMode) {
+        console.log('[AI] Boss: No minions left. Entering FRENZY mode!');
         addLog("魔将軍の瞳に昏い光が宿る……「貴様ら、生かしては帰さぬぞ！」");
         // Frenzy mode activation logic is handled by caller (updating actor state)
         return { skillId: 'boss_aura', targetIds: [actor.id], forceFrenzy: true };
